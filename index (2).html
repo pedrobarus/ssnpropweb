@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PENGAJUAN PEMINJAMAN SSN PROPERTY 2026</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    body { background-color: #f4f7f6; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .form-container { max-width: 900px; background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin: auto; }
+    .header { border-bottom: 4px solid #dc3545; margin-bottom: 25px; padding-bottom: 15px; }
+    .sop-box { background: #fff5f5; border-left: 6px solid #dc3545; padding: 15px; margin-bottom: 25px; font-size: 0.85rem; }
+    .section-step { display: none; }
+    .section-step.active { display: block; }
+    .asset-list { max-height: 420px; overflow-y: auto; border: 1px solid #dee2e6; padding: 15px; border-radius: 8px; background: #fff; margin-bottom: 15px; }
+    .btn-nav { padding: 10px 25px; font-weight: bold; }
+    .form-label { font-weight: 600; color: #444; }
+    .other-input { display: none; margin-top: 10px; }
+    .auth-box { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; padding: 30px; text-align: center; }
+    .badge-status { font-size: 0.72rem; margin-left: 6px; }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <div class="header text-center">
+      <h2 class="fw-bold">PENGAJUAN PEMINJAMAN SSN PROPERTY 2026</h2>
+      <p class="text-muted small">Silahkan di isi sesuai pada form ya ! Mengisi tidak sesuai SOP = TOLAK</p>
+    </div>
+
+    <!-- PANEL LOADING AWAL -->
+    <div id="loadingOverlay" class="text-center py-5">
+      <div class="spinner-border text-danger" role="status"></div>
+      <p class="mt-2 text-muted fw-semibold">Memuat database aset & jadwal operasional...</p>
+    </div>
+
+    <!-- PANEL LOGIN GOOGLE -->
+    <div id="loginPanel" class="auth-box" style="display:none;">
+      <h5 class="fw-bold mb-2">🔐 Verifikasi Akun Google</h5>
+      <p class="text-muted small mb-4">
+        Silakan masuk menggunakan Akun Google Anda untuk melanjutkan pengisian formulir.<br>
+        <strong>Jam Operasional Umum:</strong> 08:00 – 17:00 WIB (Akun Staff/Admin terdaftar bebas batas waktu).
+      </p>
+      <div class="d-flex justify-content-center">
+        <div id="g_id_onload"
+             data-client_id="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.apps.googleusercontent.com"
+             data-callback="handleCredentialResponse"
+             data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="sign_in_with" data-shape="rectangular"></div>
+      </div>
+    </div>
+
+    <!-- PANEL FORM TUTUP (DI LUAR JAM 08:00 - 17:00 WIB) -->
+    <div id="closedPanel" class="alert alert-danger text-center p-4" style="display:none;">
+      <h4 class="fw-bold">⛔ FORMULIR SEDANG DITUTUP</h4>
+      <p class="mb-2">Pengajuan peminjaman hanya dibuka pada pukul <strong>08:00 – 17:00 WIB</strong>.</p>
+      <p class="small text-muted mb-3" id="closedUserInfo"></p>
+      <button type="button" class="btn btn-outline-danger btn-sm" onclick="logoutGoogle()">Ganti Akun Google</button>
+    </div>
+
+    <!-- KONTEN UTAMA FORMULIR -->
+    <div id="mainFormWrapper" style="display:none;">
+      <div class="d-flex justify-content-between align-items-center bg-light p-2 px-3 rounded mb-3 border">
+        <small>Login sebagai: <strong id="loggedUserEmail" class="text-primary"></strong> <span id="bypassBadge" class="badge bg-success ms-1" style="display:none;">Akses 24 Jam</span></small>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="logoutGoogle()">Keluar</button>
+      </div>
+
+      <div class="sop-box">
+        <strong>⚠️ SOP Peminjaman:</strong> <br>
+        1. Mengisi Form dengan baik dan benar <br>
+        2. Melakukan peminjaman dengan benar <br>
+        3. Jika salah input mohon konfirmasi ke staff ! <br>
+        4. Mengisi tidak sesuai SOP sebanyak 3x dalam 1 Periode ( Semester ) = <b>BANNED 1 Periode</b> <br>
+        5. Melampirkan CP / WA dengan benar yang diawali dengan <b>62 BUKAN 08</b> !<br>
+        6. Dilarang melakukan <b>pemalsuan data peminjaman</b> ( tidak sesuai pada surat yang terlampir ) ! <br>
+        7. Mengisi peminjaman doubel = <b>POINT PELANGGARAN !</b>
+      </div>
+
+      <form id="ssnForm">
+        <!-- STEP 1 -->
+        <div class="section-step active" id="step1">
+          <h5 class="mb-3 border-bottom pb-2">Bagian 1: Identitas Penginput</h5>
+          <div class="mb-3">
+            <label class="form-label">NAMA PENGINPUT TIKET <span class="text-danger">*</span></label>
+            <input type="text" name="nama_penginput" class="form-control" required>
+            <small class="text-muted">Input Nama Anda dengan BENAR !.</small>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">NO TIKET <span class="text-danger">*</span></label>
+            <input type="text" name="no_tiket" class="form-control" required>
+            <small class="text-muted">Kosongkan / beri tanda (-) jika anda STAFF (bukan pengajuan melalui SSC).</small>
+          </div>
+          <div class="mt-4 overflow-hidden">
+            <button type="button" class="btn btn-primary btn-nav float-end" onclick="validateAndNext(1, 2)">Lanjut</button>
+          </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="section-step" id="step2">
+          <h5 class="mb-3 border-bottom pb-2">Bagian 2: Data Pengaju & Lokasi</h5>
+          <div class="mb-3">
+            <label class="form-label">NAMA PENGAJU *</label>
+            <input type="text" name="nama_pengaju" class="form-control" required>
+            <small class="text-muted">Input Nama Anda dengan BENAR !.</small>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">NO WHATSAPP PENGAJU *</label>
+            <input type="text" name="wa_pengaju" id="waPengaju" class="form-control" placeholder="Contoh: 62812..." required>
+            <small class="text-muted">Wajib diawali dengan <b>62</b> (bukan 08)!</small>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">NAMA EVENT *</label>
+            <input type="text" name="nama_event" class="form-control" required>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3"><label class="form-label">START EVENT *</label><input type="datetime-local" name="start_event" class="form-control" required></div>
+            <div class="col-md-6 mb-3"><label class="form-label">END EVENT *</label><input type="datetime-local" name="end_event" class="form-control" required></div>
+          </div>
+
+          <!-- USER DINAMIS DARI SHEET DAFTAR USER -->
+          <div class="mb-3">
+            <label class="form-label">USER *</label>
+            <select name="user_type" id="userSelect" class="form-select" onchange="toggleOther(this, 'user_other')" required>
+              <option value="" disabled selected>Pilih User...</option>
+            </select>
+            <input type="text" name="user_other" id="user_other" class="form-control other-input" placeholder="Sebutkan user lainnya...">
+          </div>
+
+          <!-- DIVISION DINAMIS DARI SHEET DAFTAR DIVISON -->
+          <div class="mb-3">
+            <label class="form-label">DIVISION *</label>
+            <select name="division" id="divisionSelect" class="form-select" onchange="toggleOther(this, 'div_other')" required>
+              <option value="" disabled selected>Pilih Divisi...</option>
+            </select>
+            <input type="text" name="div_other" id="div_other" class="form-control other-input" placeholder="Sebutkan divisi lainnya...">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Location Event *</label>
+            <select name="location" class="form-select" onchange="toggleOther(this, 'loc_other')" required>
+              <option value="" disabled selected>Pilih Lokasi...</option>
+              <option value="CITRA BERKAT SCHOOL SBY - CIPUTRA">CITRA BERKAT SCHOOL SBY - CIPUTRA</option>
+              <option value="Citra Kasih Sby School">Citra Kasih Sby School</option>
+              <option value="SPRINGFIELD RAFFLESHILLS">SPRINGFIELD RAFFLESHILLS</option>
+              <option value="Pa Van Der">Pa Van Der</option>
+              <option value="SpringField">SpringField</option>
+              <option value="TK CITRA BERKAT SBY">TK CITRA BERKAT SBY</option>
+              <option value="ELYON UTAMA">ELYON UTAMA</option>
+              <option value="IPEKA PUSAT">IPEKA PUSAT</option>
+              <option value="ELYON SECONDARY - HIGH SCHOOL - WEST CAMPUS">ELYON SECONDARY - HIGH SCHOOL - WEST CAMPUS</option>
+              <option value="PrimeOneSchool">PrimeOneSchool</option>
+              <option value="ELYON PJS - EAST CAMPUS">ELYON PJS - EAST CAMPUS</option>
+              <option value="BPK PENABUR 3">BPK PENABUR 3</option>
+              <option value="BUDI AGUNG JKT">BUDI AGUNG JKT</option>
+              <option value="TUS">TUS</option>
+              <option value="ELYON PRESCHOOL - EAST CAMPUS">ELYON PRESCHOOL - EAST CAMPUS</option>
+              <option value="SCKDBPI">SCKDBPI</option>
+              <option value="IPEKA PURI">IPEKA PURI</option>
+              <option value="Surabaya Cambridge School">Surabaya Cambridge School</option>
+              <option value="ELYON">ELYON</option>
+              <option value="GLOBAL PRIMA">GLOBAL PRIMA</option>
+              <option value="Elyon PrimaryWest - Sukomanunggal">Elyon PrimaryWest - Sukomanunggal</option>
+              <option value="SD CITRA BERKAT SBY">SD CITRA BERKAT SBY</option>
+              <option value="Yang lain">Yang lain...</option>
+            </select>
+            <input type="text" name="loc_other" id="loc_other" class="form-control other-input" placeholder="Sebutkan lokasi lainnya...">
+          </div>
+
+          <div class="mt-4">
+            <button type="button" class="btn btn-secondary btn-nav" onclick="prevStep(1)">Kembali</button>
+            <button type="button" class="btn btn-primary btn-nav float-end" onclick="validateAndNext(2, 3)">Lanjut</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: JENIS PEMINJAMAN SESUAI SHEET DATABASE -->
+        <div class="section-step" id="step3">
+          <h5 class="mb-3 border-bottom pb-2">Bagian 3: Jenis Peminjaman</h5>
+          <div class="mb-4">
+            <label class="form-label">YANG INGIN DI PINJAM *</label>
+            <select name="kategori_utama" id="kategoriUtama" class="form-select" onchange="handleMainBranch(this.value)" required>
+              <option value="" disabled selected>Pilih Kategori...</option>
+              <option value="PAKETAN_UMUM">PAKETAN UMUM (Paket Ruangan & Paket Assets)</option>
+              <option value="PAKETAN_LOGISTIK">PAKETAN LOGISTIK (Kamera, Lensa, Mic, LOG)</option>
+              <option value="ALAT_PROPERTY">ALAT DAN PROPERTY (Satuan & Bendera)</option>
+              <option value="RUANGAN">RUANGAN (Non-Paketan / Satuan)</option>
+              <option value="UKM_CENTER">UKM CENTER</option>
+              <option value="PUTI">PUSAT TEKNOLOGI INFORMASI (PuTi)</option>
+              <option value="OWNER">ASSET OWNER</option>
+            </select>
+          </div>
+
+          <!-- Sub-filter opsional untuk PAKETAN UMUM -->
+          <div id="subPaketanBox" style="display:none;" class="mb-4 p-3 border rounded bg-light">
+            <label class="form-label">Filter Jenis Paketan Umum *</label>
+            <select name="sub_kategori" id="subKategori" class="form-select">
+              <option value="SEMUA">SEMUA PAKETAN UMUM</option>
+              <option value="Paket Ruangan">Paket Ruangan</option>
+              <option value="Paket Assets">Paket Assets</option>
+            </select>
+          </div>
+
+          <div class="mt-4">
+            <button type="button" class="btn btn-secondary btn-nav" onclick="prevStep(2)">Kembali</button>
+            <button type="button" class="btn btn-primary btn-nav float-end" onclick="goToItemsStep()">Lanjut Ke Daftar Aset</button>
+          </div>
+        </div>
+
+        <!-- STEP 4: DAFTAR ASET TERFILTER -->
+        <div class="section-step" id="step4">
+          <h5 class="mb-1 border-bottom pb-2" id="assetTitle">Daftar Aset</h5>
+          <p class="small text-muted mb-3" id="filterInfoText"></p>
+          <div id="assetContainer" class="asset-list"></div>
+
+          <div class="mb-3">
+            <label class="form-label">NOTE PEMINJAMAN // QTY *</label>
+            <textarea name="note_qty" class="form-control" rows="3" placeholder="Sebutkan QTY untuk masing-masing barang yang dicentang..." required></textarea>
+          </div>
+
+          <div class="mt-4">
+            <button type="button" class="btn btn-secondary btn-nav" onclick="prevStep(3)">Kembali</button>
+            <button type="button" class="btn btn-primary btn-nav float-end" onclick="validateAndNext(4, 5)">Lanjut</button>
+          </div>
+        </div>
+
+        <!-- STEP 5: KONFIRMASI -->
+        <div class="section-step" id="step5">
+          <h5 class="mb-3 border-bottom pb-2">Bagian Akhir: Konfirmasi</h5>
+          <div class="sop-box text-dark">
+            <p>1. Saya telah membaca Syarat dan Ketentuan peminjaman Asset dan Ruangan.</p>
+            <p>2. Saya setuju dengan konsekuensi kerusakan Asset.</p>
+            <p>3. Jika tidak bisa klik <b>KIRIM PENGAJUAN</b> berarti anda belum mengisi semua form dengan benar !!.</p>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="confirm1" required>
+            <label class="form-check-label" for="confirm1">YA, Saya mengerti dan setuju.</label>
+          </div>
+
+          <div class="mt-4">
+            <button type="button" class="btn btn-secondary btn-nav" onclick="prevStep(4)">Kembali</button>
+            <button type="submit" id="submitBtn" class="btn btn-success btn-nav float-end">KIRIM PENGAJUAN</button>
+          </div>
+        </div>
+      </form>
+      <div id="responseMsg" class="mt-4 text-center fw-bold"></div>
+    </div>
+  </div>
+
+  <script>
+    // ================= KONFIGURASI WAJIB =================
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx3HHmH0FGjStfkYyjhYIDZmMUx2ljHHVF7XGkvNb5ojIN2hhalvCL5DO4K9bc6dSYa/exec";
+    // ====================================================
+
+    let dbData = null;
+    let currentUserEmail = "";
+
+    // 1. Ambil data real-time dari Apps Script saat halaman dibuka
+    window.addEventListener("DOMContentLoaded", async () => {
+      try {
+        const res = await fetch(GAS_WEB_APP_URL);
+        dbData = await res.json();
+        if (dbData.status !== "success") throw new Error(dbData.message);
+
+        populateDropdowns();
+        document.getElementById("loadingOverlay").style.display = "none";
+
+        // Cek sesi login tersimpan di sessionStorage
+        const savedEmail = sessionStorage.getItem("ssn_google_email");
+        if (savedEmail) {
+          verifyAccess(savedEmail);
+        } else {
+          document.getElementById("loginPanel").style.display = "block";
+        }
+      } catch (err) {
+        document.getElementById("loadingOverlay").innerHTML =
+          `<div class="alert alert-danger">Gagal memuat data dari Spreadsheet: ${err.message}</div>`;
+      }
+    });
+
+    // 2. Decode JWT Google Login
+    function handleCredentialResponse(response) {
+      const payload = JSON.parse(atob(response.credential.split('.')[1]));
+      const email = payload.email.toLowerCase();
+      sessionStorage.setItem("ssn_google_email", email);
+      verifyAccess(email);
+    }
+
+    function logoutGoogle() {
+      sessionStorage.removeItem("ssn_google_email");
+      currentUserEmail = "";
+      document.getElementById("mainFormWrapper").style.display = "none";
+      document.getElementById("closedPanel").style.display = "none";
+      document.getElementById("loginPanel").style.display = "block";
+    }
+
+    // 3. Cek Jam Operasional (08:00 - 17:00 WIB) & Whitelist Email
+    function verifyAccess(email) {
+      currentUserEmail = email;
+      document.getElementById("loginPanel").style.display = "none";
+
+      const isWhitelisted = dbData.whitelistedEmails.includes(email);
+
+      // Hitung jam saat ini di zona waktu WIB (Asia/Jakarta)
+      const nowWIB = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
+      const currentHour = nowWIB.getHours();
+      const isOperationalHours = currentHour >= 8 && currentHour < 17; // 08:00 s/d 16:59 WIB
+
+      if (isWhitelisted || isOperationalHours) {
+        document.getElementById("closedPanel").style.display = "none";
+        document.getElementById("mainFormWrapper").style.display = "block";
+        document.getElementById("loggedUserEmail").innerText = email;
+        document.getElementById("bypassBadge").style.display = isWhitelisted ? "inline-block" : "none";
+      } else {
+        document.getElementById("mainFormWrapper").style.display = "none";
+        document.getElementById("closedPanel").style.display = "block";
+        document.getElementById("closedUserInfo").innerText = `Akun Anda (${email}) tidak terdaftar sebagai akun bypass 24 jam.`;
+      }
+    }
+
+    // 4. Isi Dropdown User & Division dari Spreadsheet
+    function populateDropdowns() {
+      const userSel = document.getElementById("userSelect");
+      dbData.users.forEach(u => {
+        const opt = document.createElement("option");
+        opt.value = u;
+        opt.textContent = u;
+        userSel.appendChild(opt);
+      });
+      const optOtherU = document.createElement("option");
+      optOtherU.value = "Yang lain";
+      optOtherU.textContent = "Yang lain...";
+      userSel.appendChild(optOtherU);
+
+      const divSel = document.getElementById("divisionSelect");
+      dbData.divisions.forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.textContent = d;
+        divSel.appendChild(opt);
+      });
+      const optOtherD = document.createElement("option");
+      optOtherD.value = "Yang lain";
+      optOtherD.textContent = "Yang lain...";
+      divSel.appendChild(optOtherD);
+    }
+
+    // 5. Logika Filter Aset Berdasarkan User & Division
+    function isAssetAllowed(item, userRole, divisionRole) {
+      const bookRule = (item.bookBy || "").toUpperCase();
+      const user = (userRole || "").toUpperCase();
+      const div = (divisionRole || "").toUpperCase();
+
+      // Aturan 1: EXTERNAL -> Tampilkan keseluruhan
+      if (user === "EXTERNAL" || div === "EXTERNAL") {
+        return true;
+      }
+
+      // Aturan 2: STAFF, ADMISI, atau LOG -> Hanya Universal, Staff, Admisi, dan Logistik/LOG Only
+      const isStaffGroup = ["STAFF", "LOG", "MARKETING", "OWNER"].includes(user) ||
+                           ["ADMISI", "LOG", "PUTI", "SDM", "KEUANGAN", "TEACHER", "SEKPIM"].includes(div);
+
+      if (isStaffGroup) {
+        return (
+          bookRule.includes("UNIVERSAL") ||
+          bookRule.includes("STAFF") ||
+          bookRule.includes("ADMISI") ||
+          bookRule.includes("LOG") ||
+          bookRule === ""
+        );
+      }
+
+      // Aturan 3: MAHASISWA, STUDENT, STUDENT STAFF, BEM, PKKMB -> Universal, Student, Mahasiswa/Siswa, UKM & ORMAWA
+      const isStudentGroup = ["MAHASISWA", "STUDENT", "STUDENT STAFF", "BEM"].includes(user) ||
+                             ["MAHASISWA", "STUDENT", "STUDENT STAFF", "BEM TUS", "PKKMB", "IKATAN MAHASISWA SULAWESI"].includes(div);
+
+      if (isStudentGroup) {
+        return (
+          bookRule.includes("UNIVERSAL") ||
+          bookRule.includes("STUDENT") ||
+          bookRule.includes("MAHASISWA") ||
+          bookRule.includes("SISWA") ||
+          bookRule.includes("UKM") ||
+          bookRule.includes("ORMAWA")
+        );
+      }
+
+      // Default fallback jika user memilih "Yang lain"
+      return bookRule.includes("UNIVERSAL");
+    }
+
+    function handleMainBranch(val) {
+      const subBox = document.getElementById("subPaketanBox");
+      subBox.style.display = (val === "PAKETAN_UMUM") ? "block" : "none";
+    }
+
+    function goToItemsStep() {
+      const mainKat = document.getElementById("kategoriUtama").value;
+      if (!mainKat) {
+        alert("Pilih kategori peminjaman terlebih dahulu!");
+        return;
+      }
+
+      if (mainKat === "OWNER") {
+        alert("PEMINJAMAN ASSET OWNER DIALIHKAN KE FORM KHUSUS (Silahkan hubungi Staff)\nLink: https://bit.ly/ASSETOWNER-NEW");
+        return;
+      }
+
+      renderAssets(mainKat);
+      nextStep(4);
+    }
+
+    function renderAssets(categoryKey) {
+      const container = document.getElementById("assetContainer");
+      container.innerHTML = "";
+
+      const selectedUser = document.getElementById("userSelect").value;
+      const selectedDiv = document.getElementById("divisionSelect").value;
+      const subPaketan = document.getElementById("subKategori").value;
+
+      document.getElementById("assetTitle").innerText = "Daftar Aset: " + categoryKey.replace("_", " ");
+      document.getElementById("filterInfoText").innerText = `Menampilkan aset sesuai hak akses User: ${selectedUser} | Division: ${selectedDiv}`;
+
+      let list = dbData.assets[categoryKey] || [];
+
+      // Filter sub-kategori jika PAKETAN_UMUM
+      if (categoryKey === "PAKETAN_UMUM" && subPaketan !== "SEMUA") {
+        list = list.filter(item => item.jenis.toLowerCase() === subPaketan.toLowerCase());
+      }
+
+      // Filter hak akses berdasarkan DAPAT DI BOOK OLEH
+      const filteredList = list.filter(item => isAssetAllowed(item, selectedUser, selectedDiv));
+
+      if (filteredList.length === 0) {
+        container.innerHTML = `<div class="alert alert-warning mb-2">Tidak ada aset tersedia untuk kategori & role Anda saat ini.</div>`;
+      } else {
+        filteredList.forEach((item, idx) => {
+          const isUnavailable = item.status.toLowerCase() === "tidak tersedia" || item.status.toLowerCase() === "maintenance";
+          const badgeClass = isUnavailable ? "bg-danger" : (item.status.toLowerCase() === "soon" ? "bg-warning text-dark" : "bg-success");
+          const extraLabel = item.extra ? ` (${item.extra})` : "";
+
+          const div = document.createElement("div");
+          div.className = "form-check mb-1";
+          div.innerHTML = `
+            <input class="form-check-input" type="checkbox" name="assets_selected" value="${item.nama}" id="asset_${idx}" ${isUnavailable ? "disabled" : ""}>
+            <label class="form-check-label ${isUnavailable ? 'text-muted text-decoration-line-through' : ''}" for="asset_${idx}">
+              ${item.nama}${extraLabel}
+              <span class="badge ${badgeClass} badge-status">${item.status}</span>
+              <span class="badge bg-secondary badge-status">${item.bookBy || 'UNIVERSAL'}</span>
+            </label>
+          `;
+          container.appendChild(div);
+        });
+      }
+
+      // Opsi manual "Yang lain"
+      const otherDiv = document.createElement("div");
+      otherDiv.className = "form-check mt-3 pt-2 border-top";
+      otherDiv.innerHTML = `
+        <input class="form-check-input" type="checkbox" id="asset_other_check">
+        <label class="form-check-label fw-semibold" for="asset_other_check">Yang lain:</label>
+        <input type="text" id="asset_other_val" class="form-control form-control-sm mt-1" style="display:none" placeholder="Sebutkan aset lainnya...">
+      `;
+      container.appendChild(otherDiv);
+
+      document.getElementById("asset_other_check").onchange = function () {
+        document.getElementById("asset_other_val").style.display = this.checked ? "block" : "none";
+      };
+    }
+
+    // Navigasi & Validasi per Step
+    function validateAndNext(currentStep, targetStep) {
+      const stepEl = document.getElementById("step" + currentStep);
+      const inputs = stepEl.querySelectorAll("input[required], select[required], textarea[required]");
+      for (let input of inputs) {
+        if (!input.value.trim()) {
+          input.focus();
+          alert("Harap lengkapi semua kolom bertanda bintang (*) sebelum melanjutkan!");
+          return;
+        }
+      }
+
+      if (currentStep === 2) {
+        const wa = document.getElementById("waPengaju").value.trim();
+        if (!wa.startsWith("62")) {
+          alert("SOP #5: Nomor WhatsApp wajib diawali dengan 62 (BUKAN 08)!");
+          document.getElementById("waPengaju").focus();
+          return;
+        }
+      }
+
+      nextStep(targetStep);
+    }
+
+    function nextStep(step) {
+      document.querySelectorAll(".section-step").forEach(s => s.classList.remove("active"));
+      document.getElementById("step" + step).classList.add("active");
+      window.scrollTo(0, 0);
+    }
+
+    function prevStep(step) { nextStep(step); }
+
+    function toggleOther(select, id) {
+      document.getElementById(id).style.display = (select.value === "Yang lain") ? "block" : "none";
+    }
+
+    // 6. Submit Form ke Google Apps Script (SSN PROP 2026)
+    document.getElementById("ssnForm").onsubmit = async function (e) {
+      e.preventDefault();
+      const btn = document.getElementById("submitBtn");
+      btn.disabled = true;
+      document.getElementById("responseMsg").innerHTML = `<div class="alert alert-info">⏳ Sedang mengirim pengajuan ke SSN PROP 2026...</div>`;
+
+      let selected = Array.from(document.querySelectorAll('input[name="assets_selected"]:checked')).map(cb => cb.value);
+      const otherCheck = document.getElementById("asset_other_check");
+      const otherVal = document.getElementById("asset_other_val");
+      if (otherCheck && otherCheck.checked && otherVal.value.trim()) {
+        selected.push("Lainnya: " + otherVal.value.trim());
+      }
+
+      const formData = new FormData(this);
+      const data = Object.fromEntries(formData.entries());
+      data.google_email = currentUserEmail;
+      data.assets_selected = selected.join(", ");
+
+      const mainKat = document.getElementById("kategoriUtama").value;
+      const subKat = document.getElementById("subKategori").value;
+      data.kategori_lengkap = mainKat === "PAKETAN_UMUM" ? `${mainKat} (${subKat})` : mainKat;
+
+      try {
+        const res = await fetch(GAS_WEB_APP_URL, {
+          method: "POST",
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+
+        if (result.status === "success") {
+          document.getElementById("responseMsg").innerHTML = `<div class="alert alert-success">${result.message}</div>`;
+          document.getElementById("ssnForm").reset();
+          setTimeout(() => { location.reload(); }, 3000);
+        } else {
+          throw new Error(result.message);
+        }
+      } catch (err) {
+        document.getElementById("responseMsg").innerHTML = `<div class="alert alert-danger">Gagal mengirim: ${err.message}</div>`;
+        btn.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>
